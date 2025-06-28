@@ -143,3 +143,218 @@ ORDER BY CAST(
 ) DESC;
 ```
 # 🎯 Special Filters
+### 12. List All Movies that Are Documentaries
+```sql
+SELECT 
+    title,
+    listed_in
+FROM netflix_titles
+WHERE listed_in LIKE '%Documentaries%';
+```
+### 13. Find Content Without a Director
+```sql
+SELECT 
+    title,
+    director
+FROM netflix_titles
+WHERE director IS NULL;
+```
+### 14. Count How Many Shows Salman Khan Appeared In
+```sql
+SELECT 
+    COUNT(*) AS total_shows
+FROM netflix_titles
+WHERE cast LIKE '%Salman Khan%';
+```
+### 15. Top 10 Actors in Indian Movies
+```sql
+SELECT TOP 10 
+    LTRIM(RTRIM(value)) AS actor,
+    COUNT(*) AS movie_count
+FROM netflix_titles
+CROSS APPLY STRING_SPLIT(cast, ',')
+WHERE type = 'Movie'
+  AND country LIKE '%India%'
+  AND cast IS NOT NULL
+GROUP BY LTRIM(RTRIM(value))
+ORDER BY movie_count DESC;
+```
+# 🚦 Categorization
+### 16. Categorize Content Based on Keywords in Description
+```sql
+SELECT 
+    CASE 
+        WHEN 
+            PATINDEX('%[^a-zA-Z]kill[^a-zA-Z]%', ' ' + description + ' ') > 0
+            OR
+            PATINDEX('%[^a-zA-Z]violence[^a-zA-Z]%', ' ' + description + ' ') > 0
+        THEN 'Bad'
+        ELSE 'Good'
+    END AS content_category,
+    COUNT(*) AS item_count
+FROM netflix_titles
+WHERE description IS NOT NULL
+GROUP BY 
+    CASE 
+        WHEN 
+            PATINDEX('%[^a-zA-Z]kill[^a-zA-Z]%', ' ' + description + ' ') > 0
+            OR
+            PATINDEX('%[^a-zA-Z]violence[^a-zA-Z]%', ' ' + description + ' ') > 0
+        THEN 'Bad'
+        ELSE 'Good'
+    END;
+```
+# 🔄 CTEs, Views, Triggers, and Functions
+### 17. Top 5 Directors with the Most Content (CTE)
+```sql
+WITH DirectorCount AS (
+    SELECT 
+        director,
+        COUNT(*) AS total_shows
+    FROM netflix_titles
+    WHERE director IS NOT NULL
+    GROUP BY director
+)
+SELECT TOP 5
+    director,
+    total_shows
+FROM DirectorCount
+ORDER BY total_shows DESC;
+```
+### 18. Trigger: Prevent Duplicate Titles (Case-Insensitive)
+```sql
+CREATE TRIGGER trg_PreventDuplicateTitles
+ON netflix_titles
+INSTEAD OF INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (
+        SELECT 1 
+        FROM inserted i
+        JOIN netflix_titles nt ON LOWER(i.title) = LOWER(nt.title)
+    )
+    BEGIN
+        RAISERROR ('Cannot insert duplicate title (case-insensitive match found).', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
+
+    INSERT INTO netflix_titles (
+        show_id, type, title, director, cast, country,
+        date_added, release_year, rating, duration, listed_in, description
+    )
+    SELECT
+        show_id, type, title, director, cast, country,
+        date_added, release_year, rating, duration, listed_in, description
+    FROM inserted;
+END;
+```
+### 19. Stored Procedure: Delete Only Movies (Rollback if TV Show)
+```sql
+CREATE PROCEDURE DeleteMoviesByShowID
+    @show_id VARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @content_type VARCHAR(20);
+
+        SELECT @content_type = type
+        FROM netflix_titles
+        WHERE show_id = @show_id;
+
+        IF @content_type IS NULL
+        BEGIN
+            RAISERROR('No content found with the given show_id.', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        IF @content_type = 'TV Show'
+        BEGIN
+            RAISERROR('Deletion not allowed: Content is a TV Show.', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        DELETE FROM netflix_titles
+        WHERE show_id = @show_id;
+
+        COMMIT TRANSACTION;
+        PRINT 'Movie deleted successfully.';
+    END TRY
+
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        DECLARE @ErrMsg NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrSeverity INT = ERROR_SEVERITY();
+        RAISERROR(@ErrMsg, @ErrSeverity, 1);
+    END CATCH
+END;
+```
+### 20. View: All Indian Movies
+```sql
+CREATE VIEW Indian_Movies_View 
+AS
+SELECT 
+    title,
+    director,
+    release_year,
+    description
+FROM netflix_titles
+WHERE type = 'Movie' AND country LIKE '%India%';
+
+-- Test
+SELECT * FROM Indian_Movies_View;
+```
+### 21. Scalar Function: Get Content Age
+```sql
+CREATE FUNCTION GetContentAge(@year INT)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @age INT;
+    SET @age = YEAR(GETDATE()) - @year;
+    RETURN @age;
+END;
+
+-- Test
+SELECT 
+    title,
+    release_year,
+    dbo.GetContentAge(release_year) AS content_age
+FROM netflix_titles;
+```
+### 22. Table-Valued Function: Get Content by Rating
+```sql
+CREATE FUNCTION GetContentByRating (@rating VARCHAR(10))
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 
+        show_id,
+        type,
+        title,
+        director,
+        cast,
+        country,
+        date_added,
+        release_year,
+        rating,
+        duration,
+        listed_in,
+        description
+    FROM netflix_titles
+    WHERE rating = @rating
+);
+
+-- Test
+SELECT * FROM dbo.GetContentByRating('TV-MA');
+```
+💡 Feel free to fork this project, use the SQL logic, or extend it with procedures for analytics, report generation, and more!
