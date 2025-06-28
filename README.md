@@ -48,4 +48,97 @@ SELECT
 FROM netflix_titles
 GROUP BY type;
 ```
-
+### 3. Most Common Rating for Movies and TV Shows
+```sql
+SELECT 
+    rating,
+    COUNT(rating) AS total_count
+FROM netflix_titles
+GROUP BY rating
+ORDER BY total_count DESC;
+```
+### 4. List All Movies Released in 2020
+```sql
+SELECT 
+    title, 
+    release_year
+FROM netflix_titles
+WHERE release_year = 2020;
+```
+### 5. Top 5 Countries with the Most Content
+```sql
+SELECT TOP 5 
+    country, 
+    COUNT(*) AS total_titles
+FROM netflix_titles
+WHERE country IS NOT NULL
+GROUP BY country
+ORDER BY total_titles DESC;
+```
+### 6. Identify the Longest Movie 
+```sql
+SELECT TOP 10 
+    title,
+    duration,
+    CAST(LEFT(LTRIM(RTRIM(duration)), CHARINDEX(' ', LTRIM(RTRIM(duration))) - 1) AS INT) AS numeric_duration
+FROM netflix_titles
+WHERE type = 'Movie' AND duration LIKE '%min'
+ORDER BY numeric_duration DESC;
+```
+### 7. Content Added in the Last 5 Years
+```sql
+SELECT TOP 10
+    title,
+    TRY_CAST(date_added AS DATE)
+FROM netflix_titles
+WHERE TRY_CAST(date_added AS DATE) >= DATEADD(YEAR, -5, GETDATE())
+ORDER BY TRY_CAST(date_added AS DATE) DESC;
+```
+### 8. Shows by Director 'Rajiv Chilaka'
+```sql
+SELECT 
+    title,
+    type,
+    director
+FROM netflix_titles
+WHERE director = 'Rajiv Chilaka';
+```
+### 9. TV Shows with More Than 5 Seasons
+```sql
+SELECT 
+    title,
+    type, 
+    duration
+FROM netflix_titles
+WHERE type = 'TV Show'
+  AND duration LIKE '%Season%'
+  AND CAST(LEFT(duration, CHARINDEX(' ', duration) - 1) AS INT) > 5;
+```
+### 10. Count Content Items in Each Genre
+```sql
+SELECT 
+    type,
+    COUNT(type) AS total_count
+FROM netflix_titles
+GROUP BY type;
+```
+### 11. Top 5 Years with Highest % of Indian Content
+```sql
+SELECT TOP 5
+    country,
+    release_year,
+    COUNT(show_id) AS total_release,
+    FORMAT(
+        CAST(COUNT(show_id) AS decimal(10,2)) / 
+        CAST((SELECT COUNT(show_id) FROM netflix_titles WHERE country LIKE '%India%') AS decimal(10,2)) * 100,
+        'N2'
+    ) AS avg_release_percentage
+FROM netflix_titles
+WHERE country LIKE '%India%'
+GROUP BY country, release_year
+ORDER BY CAST(
+        CAST(COUNT(show_id) AS decimal(10,2)) / 
+        CAST((SELECT COUNT(show_id) FROM netflix_titles WHERE country LIKE '%India%') AS decimal(10,2)) * 100
+    AS decimal(10,2)
+) DESC;
+```
