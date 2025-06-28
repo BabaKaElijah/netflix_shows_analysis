@@ -1,6 +1,6 @@
 # 📺 Netflix SQL Analysis Project
 
-![App Screenshot](logo.PNG)
+![App Screenshot](logo.png)
 
 A collection of SQL queries, views, triggers, functions, and stored procedures for analyzing the `netflix_titles` dataset in SQL Server.
 
