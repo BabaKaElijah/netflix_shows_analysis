@@ -353,11 +353,10 @@ RETURN
     FROM netflix_titles
     WHERE rating = @rating
 );
-```
-## 👤 Author
-Ellias Sithole
-
 -- Test
 SELECT * FROM dbo.GetContentByRating('TV-MA');
 ```
 💡 Feel free to fork this project, use the SQL logic, or extend it with procedures for analytics, report generation, and more!
+
+## 👤 Author
+Ellias Sithole
