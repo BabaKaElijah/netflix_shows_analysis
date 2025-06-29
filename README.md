@@ -353,6 +353,9 @@ RETURN
     FROM netflix_titles
     WHERE rating = @rating
 );
+```
+## 👤 Author
+Ellias Sithole
 
 -- Test
 SELECT * FROM dbo.GetContentByRating('TV-MA');
